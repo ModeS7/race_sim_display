@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:randomnerdtutorials.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:kafkar.com)",
+      "Bash(kill:*)",
+      "Bash(rm:*)"
+    ]
+  }
+}
