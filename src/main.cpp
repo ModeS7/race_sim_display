@@ -20,7 +20,7 @@ const int NUM_SCREENS = 4;
 int currentScreenIdx = 0;
 
 // ── App state ───────────────────────────────────────────────────────────────
-enum AppState { STATE_CONNECTING, STATE_WAITING, STATE_MENU, STATE_ACTIVE };
+enum AppState { STATE_CONNECTING, STATE_WAITING, STATE_ACTIVE };
 AppState appState = STATE_CONNECTING;
 
 uint32_t lastDrawTime = 0;
@@ -283,37 +283,14 @@ void loop() {
         return;
     }
 
-    // ── Menu state (Grid Menu) ──────────────────────────────────────────
-    if (appState == STATE_MENU) {
-        int tx, ty;
-        if (touchGetXY(tx, ty)) {
-            int sel = handleMenuTouch(tx, ty);
-            if (sel >= 0) {
-                appState = STATE_ACTIVE;
-                currentScreenIdx = sel;
-                screens[sel]->enter();
-                drawPageDots(sel, NUM_SCREENS);
-            }
-        }
-        // If telemetry arrives, go to dash
-        if (data.isRaceOn == 1) {
-            appState = STATE_ACTIVE;
-            lastRaceOnTime = now;
-            currentScreenIdx = 0;
-            screens[0]->enter();
-            drawPageDots(0, NUM_SCREENS);
-        }
-        return;
-    }
-
     // ── Active state ────────────────────────────────────────────────────
     if (data.isRaceOn == 1) {
         lastRaceOnTime = now;
     } else if (now - lastRaceOnTime > RACE_OFF_TIMEOUT_MS) {
         screens[currentScreenIdx]->leave();
-        appState = STATE_MENU;
+        appState = STATE_WAITING;
         setLED(false, false, false);
-        drawGridMenu();
+        drawWaitingScreen();
         return;
     }
 
