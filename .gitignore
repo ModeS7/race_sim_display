@@ -1,5 +1,5 @@
 .pio
 .venv
-src/wifi_credentials.h
 .idea
 .claude
+src/wifi_credentials.h
