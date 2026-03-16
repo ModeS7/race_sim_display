@@ -2,6 +2,8 @@
 
 Real-time racing dashboard on the ESP32-2432S028 "Cheap Yellow Display" that receives Forza Horizon 4 UDP telemetry over WiFi and renders live data on the built-in 320x240 TFT.
 
+![Dashboard Demo](demo.gif)
+
 ## Features
 
 - **Multi-screen dashboard** — swipe left/right between screens:
