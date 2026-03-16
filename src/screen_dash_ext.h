@@ -1,7 +1,7 @@
 #pragma once
 #include "display.h"
 
-class DashScreen : public ScreenBase {
+class DashExtScreen : public ScreenBase {
 public:
     void enter() override;
     void update(const TelemetryData& data) override;
@@ -23,6 +23,7 @@ private:
     int      prevPosition = -1;
     int      prevCurrentLap = -1;
     int      prevBestLap = -1;
+    int      prevLastLap = -1;
     bool     prevFlashState = false;
     bool     wasFlashing = false;
     uint32_t lastFlashToggle = 0;

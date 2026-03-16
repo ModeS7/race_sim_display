@@ -5,17 +5,17 @@
 #include "touch.h"
 #include "settings.h"
 #include "screen_dash.h"
-#include "screen_telemetry.h"
+#include "screen_dash_ext.h"
 #include "screen_laps.h"
 #include "screen_settings.h"
 
 // ── Screens ─────────────────────────────────────────────────────────────────
 DashScreen      screenDash;
-TelemetryScreen screenTelemetry;
+DashExtScreen   screenDashExt;
 LapsScreen      screenLaps;
 SettingsScreen  screenSettings;
 
-ScreenBase* screens[] = { &screenDash, &screenTelemetry, &screenLaps, &screenSettings };
+ScreenBase* screens[] = { &screenDash, &screenDashExt, &screenLaps, &screenSettings };
 const int NUM_SCREENS = 4;
 int currentScreenIdx = 0;
 
