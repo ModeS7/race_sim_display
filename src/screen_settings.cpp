@@ -115,7 +115,7 @@ bool SettingsScreen::handleTouch(int x, int y) {
             if (g_settings.brightness + step <= 255) g_settings.brightness += step;
             else g_settings.brightness = 255;
         }
-        analogWrite(TFT_BL, g_settings.brightness);
+        ledcWrite(0, g_settings.brightness);
         drawRow(ROW_BRIGHT);
         return true;
     }

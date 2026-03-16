@@ -9,13 +9,15 @@ void displayInit() {
     pinMode(LED_B, OUTPUT);
     setLED(false, false, false);
 
-    pinMode(TFT_BL, OUTPUT);
-    analogWrite(TFT_BL, g_settings.brightness);
-
     tft.init();
     tft.setRotation(1);
     tft.invertDisplay(true);
     tft.fillScreen(TFT_BLACK);
+
+    // Re-attach backlight as PWM after tft.init() (which sets it as GPIO)
+    ledcSetup(0, 5000, 8);
+    ledcAttachPin(TFT_BL, 0);
+    ledcWrite(0, g_settings.brightness);
 }
 
 void setLED(bool r, bool g, bool b) {

@@ -12,7 +12,7 @@ void settingsLoad() {
     strlcpy(g_settings.wifiPass, prefs.getString("pass", DEFAULT_WIFI_PASS).c_str(), sizeof(g_settings.wifiPass));
     g_settings.udpPort        = prefs.getUShort("port", 5300);
     g_settings.useMetric      = prefs.getBool("metric", true);
-    g_settings.brightness     = prefs.getUChar("bright", 255);
+    g_settings.brightness     = prefs.getUChar("bright", 128);
     g_settings.shiftFlashPct  = prefs.getFloat("sFlash", 0.90f);
     g_settings.shiftGreenPct  = prefs.getFloat("sGreen", 0.75f);
     g_settings.shiftYellowPct = prefs.getFloat("sYellow", 0.85f);

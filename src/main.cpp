@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "telemetry.h"
 #include "display.h"
 #include "touch.h"
@@ -232,6 +234,9 @@ int handleMenuTouch(int tx, int ty) {
 // ── Setup ───────────────────────────────────────────────────────────────────
 
 void setup() {
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);  // Disable brownout detector
+    setCpuFrequencyMhz(80);                       // 80MHz = less current, WiFi still works
+
     Serial.begin(115200);
     settingsLoad();
     displayInit();
@@ -254,6 +259,10 @@ void setup() {
 
     Serial.print("Connected! IP: ");
     Serial.println(WiFi.localIP());
+
+    // Lower WiFi TX power to reduce current spikes
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+    WiFi.setSleep(true);  // Enable modem sleep between packets
 
     telemetryInit(g_settings.udpPort);
 
