@@ -150,9 +150,47 @@ Configurable via the Settings screen (swipe to screen 4) or by editing defaults 
 
 The flash threshold can be adjusted in Settings from 85% to 97%.
 
-## Powering from a Racing Wheel
+## Powering from a Logitech G920 Racing Wheel
 
-If mounting near a Logitech G920/G29, you can power the CYD from the wheel base's internal 5V rail instead of running a separate USB cable. The wheel rim connector Pin 7 provides 5V, Pin 1 is GND. See the [Arduino forum custom wheel threads](https://forum.arduino.cc/t/custom-steering-wheel-for-logitech-g29/1338749) for pinout details.
+You can power the CYD directly from the G920's internal 5V rail — no separate USB cable needed. The wheel's PCB exposes 5V and GND on the button connector pads.
+
+### Step 1: Open the wheel and solder power wires
+
+Remove the back cover of the G920 wheel (6 screws). Locate the button connector pads on the PCB and solder two wires:
+
+- **Red wire** → 5V pad
+- **White wire** → GND pad
+
+![Solder points on G920 PCB — 5V and GND labeled](images/solder.png)
+
+### Step 2: Route the cable out through the wheel
+
+Feed the wires through one of the existing holes in the front face of the wheel. These OEM holes are perfect for routing a thin cable without any drilling.
+
+![Cable routed through existing hole in the G920 wheel face](images/wheel_cable.jpg)
+
+### Step 3: Mount the CYD with the 3D printed bracket
+
+Print the bracket from the `3d/` folder (STL files included). The mount replaces the center cap on the G920 using the stock 6-bolt pattern (70mm PCD, 4.8mm holes) and extends upward into the top spoke area to hold the CYD at a natural viewing angle — similar to an F1 steering wheel display.
+
+1. Place the **back part** of the mount over the center hub (the center cap was already removed in Step 1)
+2. Connect the 5V and GND wires from Step 2 to the CYD's power pins
+3. Seat the CYD into the back part
+4. Press the inserts into the bolt holes to hold both parts in place
+5. Place the **front part** over the CYD
+6. Secure with the 6 stock center cap bolts + 4x M3x10mm screws for the CYD
+
+### Wheel rim connector pinout (reference)
+
+| Pin | Function |
+|-----|----------|
+| 1 | GND |
+| 2 | Button data (74HC165) |
+| 3 | LED data (74HC595) |
+| 4 | Clock |
+| 5 | Latch |
+| 6 | Parallel load |
+| 7 | 5V |
 
 ## FH4 Telemetry Packet Format
 
