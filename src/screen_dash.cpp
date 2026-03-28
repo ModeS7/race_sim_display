@@ -1,50 +1,54 @@
 #include "screen_dash.h"
 #include "settings.h"
 #include "seg7.h"
+#include "shift_advisor.h"
 
 #define FLASH_INTERVAL_MS 80
 
-// ── Layout (spread across full 240px) ───────────────────────────────────────
+// ── Layout (full 240px height) ──────────────────────────────────────────────
 #define RPM_BAR_X     10
-#define RPM_BAR_Y      4
+#define RPM_BAR_Y      6
 #define RPM_BAR_W    300
-#define RPM_BAR_H     18
+#define RPM_BAR_H     20
 
-#define SHIFT_Y       26
-#define SHIFT_H        6
+#define SHIFT_Y       30
+#define SHIFT_H        7
 #define SHIFT_SEG_W   32
 
 // RPM number left, Position right
 #define RPM_NUM_X     10
-#define RPM_NUM_Y     36
+#define RPM_NUM_Y     42
 
 #define POS_X        270
-#define POS_Y         36
+#define POS_Y         42
 
 // GEAR big center, Speed left, boost/power/torque right
 #define GEAR_X       160
-#define GEAR_Y        58
+#define GEAR_Y        68
 #define SPEED_X       48
-#define SPEED_Y       72
-#define SPEED_UNIT_Y 120
+#define SPEED_Y       85
+#define SPEED_UNIT_Y 135
 
 // Info column (right of gear)
 #define INFO_X       245
-#define INFO_BOOST_Y  65
-#define INFO_POWER_Y  80
-#define INFO_TORQUE_Y 95
+#define INFO_BOOST_Y  78
+#define INFO_POWER_Y  93
+#define INFO_TORQUE_Y 108
+
+// Tire temp rectangles (above BRAKE label)
+#define TIRE_X       250
+#define TIRE_Y       125
+#define TIRE_W         6
+#define TIRE_H        14
+#define TIRE_GAP_X     8
+#define TIRE_GAP_Y     4
 
 // Pedal bars
-#define PEDAL_Y      145
-#define PEDAL_H       20
+#define PEDAL_Y      175
+#define PEDAL_H       24
 #define ACCEL_X       10
 #define BRAKE_X      165
 #define PEDAL_W      145
-
-// Bottom row: current lap + best lap
-#define LAP_Y        180
-#define LAP_CUR_X     10
-#define LAP_BEST_X   170
 
 static uint16_t segmentColor(int seg) {
     if (seg <= 3) return TFT_GREEN;
@@ -79,6 +83,7 @@ void DashScreen::resetState() {
     prevAccelBar = -1;
     prevBrakeBar = -1;
     prevPosition = -1;
+    prevAdvice = -1;
     prevFlashState = false;
     wasFlashing = false;
     flashOn = false;
@@ -109,10 +114,6 @@ void DashScreen::drawStatic() {
     tft.drawRect(ACCEL_X - 1, PEDAL_Y - 1, PEDAL_W + 2, PEDAL_H + 2, TFT_DARKGREY);
     tft.drawRect(BRAKE_X - 1, PEDAL_Y - 1, PEDAL_W + 2, PEDAL_H + 2, TFT_DARKGREY);
 
-    // Lap section
-    tft.drawFastHLine(10, LAP_Y - 4, 300, 0x2104);
-    tft.drawString("LAP", LAP_CUR_X, LAP_Y);
-    tft.drawString("BEST", LAP_BEST_X, LAP_Y);
 }
 
 void DashScreen::update(const TelemetryData& d) {
@@ -127,8 +128,10 @@ void DashScreen::update(const TelemetryData& d) {
     float rpmPct = (d.engineMaxRpm > 0.0f) ?
                    (d.currentRpm / d.engineMaxRpm) : 0.0f;
 
-    // ── Flash logic ─────────────────────────────────────────────────────
-    bool shouldFlash = (rpmPct >= g_settings.shiftFlashPct);
+    // ── Shift advisor ────────────────────────────────────────────────────
+    g_shiftAdvisor.update(d);
+    ShiftAdvice advice = g_shiftAdvisor.getAdvice();
+    bool shouldFlash = (advice == SHIFT_UPSHIFT || advice == SHIFT_DOWNSHIFT);
     uint32_t now = millis();
     if (shouldFlash) {
         if (now - lastFlashToggle >= FLASH_INTERVAL_MS) {
@@ -144,23 +147,31 @@ void DashScreen::update(const TelemetryData& d) {
     if (shouldFlash) {
         if (flashOn != prevFlashState) {
             if (flashOn) {
-                // RED flash with SHIFT text
-                tft.fillScreen(TFT_RED);
-                tft.setTextDatum(MC_DATUM);
-                tft.setTextSize(4);
-                tft.setTextColor(TFT_WHITE, TFT_RED);
-                tft.drawString("SHIFT!", 160, 110);
+                if (advice == SHIFT_UPSHIFT) {
+                    tft.fillScreen(TFT_RED);
+                    tft.setTextDatum(MC_DATUM);
+                    tft.setTextSize(4);
+                    tft.setTextColor(TFT_WHITE, TFT_RED);
+                    tft.drawString("SHIFT!", 160, 110);
+                } else {
+                    tft.fillScreen(TFT_BLUE);
+                    tft.setTextDatum(MC_DATUM);
+                    tft.setTextSize(4);
+                    tft.setTextColor(TFT_WHITE, TFT_BLUE);
+                    tft.drawString("DOWN!", 160, 110);
+                }
             } else {
-                // Restore the live UI
                 drawStatic();
                 resetState();
             }
         }
         prevFlashState = flashOn;
         wasFlashing = true;
-        setLED(flashOn, false, false);
-        if (flashOn) return;  // skip updates only during red frame
-        // flash-OFF: fall through to update the live UI below
+        if (advice == SHIFT_UPSHIFT)
+            setLED(flashOn, false, false);    // red LED
+        else
+            setLED(false, false, flashOn);    // blue LED
+        if (flashOn) return;
     } else {
         if (wasFlashing) {
             wasFlashing = false;
@@ -170,23 +181,25 @@ void DashScreen::update(const TelemetryData& d) {
         prevFlashState = flashOn;
     }
 
-    // ── RPM bar ─────────────────────────────────────────────────────────
+    // ── RPM bar (gradient) ──────────────────────────────────────────────
     int rpmBarW = (int)(rpmFrac * RPM_BAR_W);
     if (rpmBarW != prevRpmBarW) {
         if (rpmBarW > prevRpmBarW && prevRpmBarW >= 0) {
-            uint16_t col = TFT_GREEN;
-            if (rpmPct >= g_settings.shiftRedPct)        col = TFT_RED;
-            else if (rpmPct >= g_settings.shiftYellowPct) col = TFT_YELLOW;
-            tft.fillRect(RPM_BAR_X + prevRpmBarW, RPM_BAR_Y,
-                         rpmBarW - prevRpmBarW, RPM_BAR_H, col);
+            // Growing — draw new columns with gradient
+            for (int x = prevRpmBarW; x < rpmBarW; x++) {
+                float frac = (float)x / RPM_BAR_W;
+                tft.drawFastVLine(RPM_BAR_X + x, RPM_BAR_Y, RPM_BAR_H, rpmBarColor(frac));
+            }
         } else if (rpmBarW < prevRpmBarW) {
+            // Shrinking — black out removed region
             tft.fillRect(RPM_BAR_X + rpmBarW, RPM_BAR_Y,
                          prevRpmBarW - rpmBarW, RPM_BAR_H, TFT_BLACK);
         } else {
-            uint16_t col = TFT_GREEN;
-            if (rpmPct >= g_settings.shiftRedPct)        col = TFT_RED;
-            else if (rpmPct >= g_settings.shiftYellowPct) col = TFT_YELLOW;
-            tft.fillRect(RPM_BAR_X, RPM_BAR_Y, rpmBarW, RPM_BAR_H, col);
+            // Full redraw
+            for (int x = 0; x < rpmBarW; x++) {
+                float frac = (float)x / RPM_BAR_W;
+                tft.drawFastVLine(RPM_BAR_X + x, RPM_BAR_Y, RPM_BAR_H, rpmBarColor(frac));
+            }
             if (rpmBarW < RPM_BAR_W)
                 tft.fillRect(RPM_BAR_X + rpmBarW, RPM_BAR_Y,
                              RPM_BAR_W - rpmBarW, RPM_BAR_H, TFT_BLACK);
@@ -235,12 +248,17 @@ void DashScreen::update(const TelemetryData& d) {
         prevPosition = pos;
     }
 
-    // ── GEAR (7-segment, big center) ───────────────────────────────────
+    // ── GEAR (7-segment, color changes with shift advice) ──────────────
     int gear = d.gear;
-    if (gear != prevGear) {
+    int curAdvice = (int)g_shiftAdvisor.getAdvice();
+    if (gear != prevGear || curAdvice != prevAdvice) {
+        uint16_t gearCol = TFT_WHITE;
+        if (curAdvice == SHIFT_DOWNSHIFT) gearCol = TFT_CYAN;
+        else if (curAdvice == SHIFT_UPSHIFT) gearCol = TFT_RED;
         char gch = (gear == 0) ? 'R' : ('0' + gear);
-        draw7Seg(tft, GEAR_X - 30, GEAR_Y - 22, 60, 100, 8, gch, TFT_WHITE, TFT_BLACK);
+        draw7Seg(tft, GEAR_X - 30, GEAR_Y - 22, 60, 100, 8, gch, gearCol, TFT_BLACK);
         prevGear = gear;
+        prevAdvice = curAdvice;
     }
 
     // ── Speed ───────────────────────────────────────────────────────────
@@ -255,6 +273,56 @@ void DashScreen::update(const TelemetryData& d) {
         snprintf(buf, sizeof(buf), "%d", spd);
         tft.drawString(buf, SPEED_X, SPEED_Y + 17);
         prevSpeed = spd;
+    }
+
+    // ── Tire temps: [num █]  [█ num] ───────────────────────────────────
+    tireTempUpdate(d);
+    {
+        float temps[4] = { d.tireTempFL, d.tireTempFR, d.tireTempRL, d.tireTempRR };
+        // Original rectangle positions
+        int rectX0 = TIRE_X;                          // FL, RL
+        int rectX1 = TIRE_X + TIRE_W + TIRE_GAP_X;   // FR, RR
+        int rectY0 = TIRE_Y;                          // FL, FR
+        int rectY1 = TIRE_Y + TIRE_H + TIRE_GAP_Y;   // RL, RR
+
+        tft.setTextSize(1);
+
+        // FL: number left of rectangle [85 █]
+        tft.fillRect(rectX0, rectY0, TIRE_W, TIRE_H, tireTempColor(temps[0]));
+        char buf[6];
+        if (g_settings.useMetric) snprintf(buf, sizeof(buf), "%d", (int)((temps[0] - 32.0f) * 5.0f / 9.0f));
+        else snprintf(buf, sizeof(buf), "%d", (int)temps[0]);
+        tft.setTextDatum(TR_DATUM);
+        tft.fillRect(rectX0 - 26, rectY0 + 3, 24, 8, TFT_BLACK);
+        tft.setTextColor(tireTempColor(temps[0]), TFT_BLACK);
+        tft.drawString(buf, rectX0 - 2, rectY0 + 3);
+
+        // FR: rectangle left of number [█ 87]
+        tft.fillRect(rectX1, rectY0, TIRE_W, TIRE_H, tireTempColor(temps[1]));
+        if (g_settings.useMetric) snprintf(buf, sizeof(buf), "%d", (int)((temps[1] - 32.0f) * 5.0f / 9.0f));
+        else snprintf(buf, sizeof(buf), "%d", (int)temps[1]);
+        tft.setTextDatum(TL_DATUM);
+        tft.fillRect(rectX1 + TIRE_W + 2, rectY0 + 3, 24, 8, TFT_BLACK);
+        tft.setTextColor(tireTempColor(temps[1]), TFT_BLACK);
+        tft.drawString(buf, rectX1 + TIRE_W + 2, rectY0 + 3);
+
+        // RL: number left of rectangle [82 █]
+        tft.fillRect(rectX0, rectY1, TIRE_W, TIRE_H, tireTempColor(temps[2]));
+        if (g_settings.useMetric) snprintf(buf, sizeof(buf), "%d", (int)((temps[2] - 32.0f) * 5.0f / 9.0f));
+        else snprintf(buf, sizeof(buf), "%d", (int)temps[2]);
+        tft.setTextDatum(TR_DATUM);
+        tft.fillRect(rectX0 - 26, rectY1 + 3, 24, 8, TFT_BLACK);
+        tft.setTextColor(tireTempColor(temps[2]), TFT_BLACK);
+        tft.drawString(buf, rectX0 - 2, rectY1 + 3);
+
+        // RR: rectangle left of number [█ 84]
+        tft.fillRect(rectX1, rectY1, TIRE_W, TIRE_H, tireTempColor(temps[3]));
+        if (g_settings.useMetric) snprintf(buf, sizeof(buf), "%d", (int)((temps[3] - 32.0f) * 5.0f / 9.0f));
+        else snprintf(buf, sizeof(buf), "%d", (int)temps[3]);
+        tft.setTextDatum(TL_DATUM);
+        tft.fillRect(rectX1 + TIRE_W + 2, rectY1 + 3, 24, 8, TFT_BLACK);
+        tft.setTextColor(tireTempColor(temps[3]), TFT_BLACK);
+        tft.drawString(buf, rectX1 + TIRE_W + 2, rectY1 + 3);
     }
 
     // ── Boost / Power / Torque (right of gear, stacked) ─────────────────
@@ -317,28 +385,8 @@ void DashScreen::update(const TelemetryData& d) {
         prevBrakeBar = brakeW;
     }
 
-    // ── Lap times (bottom) ──────────────────────────────────────────────
-    int curLapInt = (int)(d.currentLap * 1000);
-    if (curLapInt != prevCurrentLap) {
-        tft.setTextDatum(TL_DATUM);
-        tft.setTextSize(3);
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.fillRect(LAP_CUR_X, LAP_Y + 12, 150, 24, TFT_BLACK);
-        formatLapTime(d.currentLap, buf, sizeof(buf));
-        tft.drawString(buf, LAP_CUR_X, LAP_Y + 12);
-        prevCurrentLap = curLapInt;
-    }
-
-    int bestLapInt = (int)(d.bestLap * 1000);
-    if (bestLapInt != prevBestLap) {
-        tft.setTextDatum(TL_DATUM);
-        tft.setTextSize(3);
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.fillRect(LAP_BEST_X, LAP_Y + 12, 150, 24, TFT_BLACK);
-        formatLapTime(d.bestLap, buf, sizeof(buf));
-        tft.drawString(buf, LAP_BEST_X, LAP_Y + 12);
-        prevBestLap = bestLapInt;
-    }
+    // ── Auto brightness ─────────────────────────────────────────────────
+    updateAutoBrightness();
 
     // ── RGB LED ─────────────────────────────────────────────────────────
     if (rpmPct >= g_settings.shiftRedPct)         setLED(true, false, false);

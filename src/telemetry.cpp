@@ -19,11 +19,16 @@ static void onPacket(AsyncUDPPacket& packet) {
     g_telemetry.speed         = readF32(buf, 256);
     g_telemetry.power         = readF32(buf, 260);
     g_telemetry.torque        = readF32(buf, 264);
+    g_telemetry.tireTempFL    = readF32(buf, 268);
+    g_telemetry.tireTempFR    = readF32(buf, 272);
+    g_telemetry.tireTempRL    = readF32(buf, 276);
+    g_telemetry.tireTempRR    = readF32(buf, 280);
     g_telemetry.boost         = readF32(buf, 284);
     g_telemetry.bestLap       = readF32(buf, 296);
     g_telemetry.lastLap       = readF32(buf, 300);
     g_telemetry.currentLap    = readF32(buf, 304);
     g_telemetry.currentRaceTime = readF32(buf, 308);
+    memcpy((void*)&g_telemetry.lapNumber, buf + 312, 2);
     g_telemetry.racePosition  = buf[314];
     g_telemetry.accel         = buf[315];
     g_telemetry.brake         = buf[316];

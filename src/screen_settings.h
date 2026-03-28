@@ -12,7 +12,7 @@ private:
     void drawStatic();
     void drawRow(int row);
 
-    static const int NUM_ROWS = 5;
+    static const int NUM_ROWS = 6;
     static const int ROW_H = 32;
-    static const int ROW_Y0 = 30;
+    static const int ROW_Y0 = 28;
 };

@@ -17,11 +17,16 @@ struct TelemetryData {
     float    speed;           // offset 256 (m/s)
     float    power;           // offset 260 (watts)
     float    torque;          // offset 264 (Nm)
+    float    tireTempFL;     // offset 268 (fahrenheit)
+    float    tireTempFR;     // offset 272
+    float    tireTempRL;     // offset 276
+    float    tireTempRR;     // offset 280
     float    boost;           // offset 284 (atmospheres)
     float    bestLap;         // offset 296 (seconds)
     float    lastLap;         // offset 300 (seconds)
     float    currentLap;      // offset 304 (seconds)
     float    currentRaceTime; // offset 308 (seconds)
+    uint16_t lapNumber;      // offset 312
     uint8_t  racePosition;   // offset 314
     uint8_t  accel;           // offset 315
     uint8_t  brake;           // offset 316

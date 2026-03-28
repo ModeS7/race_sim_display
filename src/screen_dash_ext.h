@@ -24,6 +24,7 @@ private:
     int      prevCurrentLap = -1;
     int      prevBestLap = -1;
     int      prevLastLap = -1;
+    int      prevAdvice = -1;
     bool     prevFlashState = false;
     bool     wasFlashing = false;
     uint32_t lastFlashToggle = 0;
